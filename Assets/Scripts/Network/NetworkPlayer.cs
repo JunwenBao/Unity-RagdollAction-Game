@@ -22,12 +22,15 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     // 玩家指令输入
     private Vector2 moveInputVector = Vector2.zero;
     private bool isJumpButtonPressed = false;
+    private bool isRevivedButtonPressed = false;
 
     // 角色属性
     private float maxSpeed = 3f;
 
     // 角色状态
     private bool isGrounded = false;
+    private bool isActiveRagdoll = true;
+    public bool IsActiveRagdoll => isActiveRagdoll;
 
     // Raycasts
     private RaycastHit[] raycastHits = new RaycastHit[10];
@@ -41,9 +44,17 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     // 让客户端可以同步Ragdoll
     [Networked, Capacity(10)] public NetworkArray<Quaternion> networkPhysicsSyncedRotations { get; }
 
+    // 保存原始数据
+    private float startSlerpPositionSpring = 0.0f;
+
     private void Awake()
     {
         syncPhysicsObjects = GetComponentsInChildren<SyncPhysicsObject>();
+    }
+
+    private void Start()
+    {
+        startSlerpPositionSpring = mainJoint.slerpDrive.positionSpring; // 存储spring的原始状态，因为需要在玩家被击中后从ragdoll状态恢复
     }
 
     private void Update()
@@ -56,6 +67,12 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         if (Input.GetKeyDown(KeyCode.Space))
         {
             isJumpButtonPressed = true;
+        }
+
+        // 复活按键输入
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            isRevivedButtonPressed = true;
         }
     }
 
@@ -94,22 +111,25 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             // 控制角色移动与旋转
             float inputMagnityed = networkInputData.movementInput.magnitude;
             
-            if (inputMagnityed != 0)
+            if(isActiveRagdoll)
             {
-                Quaternion desiredDirection = Quaternion.LookRotation(new Vector3(networkInputData.movementInput.x * -1, 0, networkInputData.movementInput.y), transform.up);
-                mainJoint.targetRotation = Quaternion.RotateTowards(mainJoint.targetRotation, desiredDirection, Runner.DeltaTime * 300);
-
-                if (localForwardVelocity < maxSpeed)
+                if (inputMagnityed != 0)
                 {
-                    rigidbody3D.AddForce(transform.forward * inputMagnityed * 30);
-                }
-            }
+                    Quaternion desiredDirection = Quaternion.LookRotation(new Vector3(networkInputData.movementInput.x * -1, 0, networkInputData.movementInput.y), transform.up);
+                    mainJoint.targetRotation = Quaternion.RotateTowards(mainJoint.targetRotation, desiredDirection, Runner.DeltaTime * 300);
 
-            // 控制角色跳跃
-            if (isGrounded && networkInputData.isJumpPressed)
-            {
-                rigidbody3D.AddForce(Vector3.up * 20, ForceMode.Impulse);
-                isJumpButtonPressed = false;
+                    if (localForwardVelocity < maxSpeed)
+                    {
+                        rigidbody3D.AddForce(transform.forward * inputMagnityed * 30);
+                    }
+                }
+
+                // 控制角色跳跃
+                if (isGrounded && networkInputData.isJumpPressed)
+                {
+                    rigidbody3D.AddForce(Vector3.up * 20, ForceMode.Impulse);
+                    isJumpButtonPressed = false;
+                }
             }
         }
 
@@ -165,6 +185,59 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         return networkInputData;
     }
 
+    public void OnPlayerBodyPartHit()
+    {
+        if (!IsActiveRagdoll) return;
+
+        MakeRagdoll();
+    }
+
+    // 当角色出现碰撞时，进入Ragdoll状态
+    private void MakeRagdoll()
+    {
+        if (!Object.HasStateAuthority) return;
+
+        // 更新mainJoint
+        JointDrive jointDrive = mainJoint.slerpDrive;
+        jointDrive.positionSpring = 0;
+        mainJoint.slerpDrive = jointDrive;
+
+        // 更新所有的joint rotation值并发送给client
+        for(int i = 0; i < syncPhysicsObjects.Length;i++)
+        {
+            syncPhysicsObjects[i].MakeRagdoll();
+        }
+
+        isActiveRagdoll = false;
+    }
+
+    // 结束Ragdoll状态，进入Active Ragdoll（初始）状态
+    private void MakeActiveRagdoll()
+    {
+        if (!Object.HasStateAuthority) return;
+
+        // 更新mainJoint
+        JointDrive jointDrive = mainJoint.slerpDrive;
+        jointDrive.positionSpring = startSlerpPositionSpring;
+        mainJoint.slerpDrive = jointDrive;
+
+        // 更新所有的joint rotation值并发送给client
+        for (int i = 0; i < syncPhysicsObjects.Length; i++)
+        {
+            syncPhysicsObjects[i].MakeActiveRagdoll();
+        }
+
+        isActiveRagdoll = true;
+    }
+    /*
+    private void OnCollisionEnter(Collision collision)
+    {
+        if(collision.transform.CompareTag("CauseDamage"))
+        {
+            MakeRagdoll();
+        }
+    }
+    */
     public override void Spawned()
     {
         if(Object.HasInputAuthority)

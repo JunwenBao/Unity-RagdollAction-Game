@@ -13,12 +13,16 @@ public class SyncPhysicsObject : MonoBehaviour
 
     private Quaternion startLocalRotation;
 
+    private float startSlerpPositionSpring = 0.0f;
+
     private void Awake()
     {
         rigidbody3D = GetComponent<Rigidbody>();
         joint = GetComponent<ConfigurableJoint>();
 
+        // 存储初始值
         startLocalRotation = transform.localRotation;
+        startSlerpPositionSpring = joint.slerpDrive.positionSpring;
     }
 
     public void UpdateJointFromAnimation()
@@ -26,5 +30,21 @@ public class SyncPhysicsObject : MonoBehaviour
         if (!syncAnimation) return;
 
         ConfigurableJointExtensions.SetTargetRotationLocal(joint, animatedRigidBody3D.transform.localRotation, startLocalRotation);
+    }
+
+    // 当角色出现碰撞时，进入Ragdoll状态
+    public void MakeRagdoll()
+    {
+        JointDrive jointDrive = joint.slerpDrive;
+        jointDrive.positionSpring = 1;
+        joint.slerpDrive = jointDrive;
+    }
+
+    // 结束Ragdoll状态，进入Active Ragdoll（初始）状态
+    public void MakeActiveRagdoll()
+    {
+        JointDrive jointDrive = joint.slerpDrive;
+        jointDrive.positionSpring = startSlerpPositionSpring;
+        joint.slerpDrive = jointDrive;
     }
 }

@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 3137866711507673712}
   - component: {fileID: 6771508041976061214}
   - component: {fileID: 2259051697338352053}
+  - component: {fileID: 8174442932555714662}
   m_Layer: 0
   m_Name: Swiper
   m_TagString: Untagged
@@ -67,7 +68,25 @@ MonoBehaviour:
   NestedObjects: []
   NetworkedBehaviours:
   - {fileID: 6771508041976061214}
+  - {fileID: 8174442932555714662}
   ForceRemoteRenderTimeframe: 0
+--- !u!114 &8174442932555714662
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1381966587711638610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 158639473, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _stateAuthorityChangeErrorCorrectionDelta: 0
+  SyncScale: 0
+  SyncParent: 0
+  _autoAOIOverride: 1
+  DisableSharedModeInterpolation: 0
 --- !u!1001 &1969618785785513738
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -86,11 +105,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 747ae075620bb30478fae07eafe4f28b, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.65
+      value: 0.657
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 747ae075620bb30478fae07eafe4f28b, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.0117173195
+      value: 0.012
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 747ae075620bb30478fae07eafe4f28b, type: 3}
       propertyPath: m_LocalRotation.w
@@ -127,6 +146,10 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 747ae075620bb30478fae07eafe4f28b, type: 3}
       propertyPath: m_Name
       value: strut_horizontal
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 747ae075620bb30478fae07eafe4f28b, type: 3}
+      propertyPath: m_TagString
+      value: CauseDamage
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -178,7 +201,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: f53fefaa52ac3dc49ad6dc23cddeabb3, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.63601
+      value: 0.522991
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f53fefaa52ac3dc49ad6dc23cddeabb3, type: 3}
       propertyPath: m_LocalPosition.x

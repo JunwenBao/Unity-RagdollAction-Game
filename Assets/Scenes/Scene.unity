@@ -1291,21 +1291,13 @@ PrefabInstance:
       propertyPath: m_Name
       value: Swiper
       objectReference: {fileID: 0}
-    - target: {fileID: 1699004985119062619, guid: 36418ca6aad680443a4dd8216a384ac7, type: 3}
-      propertyPath: m_TagString
-      value: CauseDamage
-      objectReference: {fileID: 0}
-    - target: {fileID: 2080597765197652193, guid: 36418ca6aad680443a4dd8216a384ac7, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.657
-      objectReference: {fileID: 0}
-    - target: {fileID: 2080597765197652193, guid: 36418ca6aad680443a4dd8216a384ac7, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0.012
-      objectReference: {fileID: 0}
     - target: {fileID: 2259051697338352053, guid: 36418ca6aad680443a4dd8216a384ac7, type: 3}
       propertyPath: SortKey
       value: 3894698993
+      objectReference: {fileID: 0}
+    - target: {fileID: 2259051697338352053, guid: 36418ca6aad680443a4dd8216a384ac7, type: 3}
+      propertyPath: NetworkedBehaviours.Array.size
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3137866711507673712, guid: 36418ca6aad680443a4dd8216a384ac7, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1346,10 +1338,6 @@ PrefabInstance:
     - target: {fileID: 3137866711507673712, guid: 36418ca6aad680443a4dd8216a384ac7, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3238336039958896234, guid: 36418ca6aad680443a4dd8216a384ac7, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 0.522991
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

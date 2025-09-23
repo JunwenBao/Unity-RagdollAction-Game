@@ -47,6 +47,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     // 保存原始数据
     private float startSlerpPositionSpring = 0.0f;
 
+    // 时间：上次进入Ragdoll状态（僵直）的时间，用于恢复计时
+    private float lastTimeBeginRagdoll;
+
     private void Awake()
     {
         syncPhysicsObjects = GetComponentsInChildren<SyncPhysicsObject>();
@@ -111,6 +114,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             // 控制角色移动与旋转
             float inputMagnityed = networkInputData.movementInput.magnitude;
             
+            // 如果玩家处于Actice Ragdoll模式，则可以实现移动/跳跃等输入指令
             if(isActiveRagdoll)
             {
                 if (inputMagnityed != 0)
@@ -131,6 +135,11 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
                     isJumpButtonPressed = false;
                 }
             }
+            else
+            {
+                // 当玩家被击倒处于Ragdoll状态超过三秒后，可以按下复活键恢复正常状态
+                if(networkInputData.isRevivePressed && Runner.SimulationTime - lastTimeBeginRagdoll > 3) MakeActiveRagdoll();
+            }
         }
 
         // 权威端更新动画和物理同步
@@ -142,13 +151,14 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             // 根据动画更新joints rotation，同步动画到物理
             for (int i = 0; i < syncPhysicsObjects.Length; i++)
             {
-                syncPhysicsObjects[i].UpdateJointFromAnimation();
+                if(isActiveRagdoll) syncPhysicsObjects[i].UpdateJointFromAnimation();
                 networkPhysicsSyncedRotations.Set(i, syncPhysicsObjects[i].transform.localRotation);
             }
 
             if(transform.position.y < -10)
             {
                 networkRigidbody3D.Teleport(Vector3.zero, Quaternion.identity);
+                MakeActiveRagdoll();
             }
         }
     }
@@ -171,16 +181,18 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     {
         NetworkInputData networkInputData = new NetworkInputData();
 
-        // Move data
+        // 玩家输入移动指令
         networkInputData.movementInput = moveInputVector;
 
-        if(isJumpButtonPressed)
-        {
-            networkInputData.isJumpPressed = true;
-        }
+        // 玩家按下跳跃键
+        if(isJumpButtonPressed) networkInputData.isJumpPressed = true;
 
-        // Rest jump button
+        // 玩家按下复活键
+        if (isRevivedButtonPressed) networkInputData.isRevivePressed = true;
+
+        // 重置两个按键
         isJumpButtonPressed = false;
+        isRevivedButtonPressed = false;
 
         return networkInputData;
     }
@@ -208,6 +220,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             syncPhysicsObjects[i].MakeRagdoll();
         }
 
+        lastTimeBeginRagdoll = Runner.SimulationTime; // 存储的是Runner的模拟时间
         isActiveRagdoll = false;
     }
 

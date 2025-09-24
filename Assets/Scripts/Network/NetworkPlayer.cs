@@ -6,12 +6,12 @@ using UnityEngine;
 public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 {
     public static NetworkPlayer Local { get; set; }
-
+    
     [SerializeField]
     private Rigidbody rigidbody3D;
 
     [SerializeField]
-    private NetworkRigidbody3D networkRigidbody3D;
+    private NetworkRigidbody3D networkRigidbody3D; // 让Rigidbody在网络上同步
 
     [SerializeField]
     private ConfigurableJoint mainJoint;
@@ -20,32 +20,20 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     private Animator animator;
 
     // 玩家指令输入
-    private Vector2 moveInputVector = Vector2.zero;
-    private bool isJumpButtonPressed = false;
+    private Vector2 moveInputVector     = Vector2.zero;
+    private bool isJumpButtonPressed    = false;
     private bool isRevivedButtonPressed = false;
-    private bool isGrabButtonPressed = false;
+    private bool isGrabButtonPressed    = false;
 
     // 角色属性
     private float maxSpeed = 3f;
 
     // 角色状态
     private bool isGrounded = false;
-    private bool isActiveRagdoll = true;
+    private bool isActiveRagdoll  = true;
+    private bool isGrabingActive  = false;
     public bool IsActiveRagdoll => isActiveRagdoll;
-    private bool isGrabbingActive = false;
-    public bool IsGrabbingActive => isGrabbingActive;
-
-    // Raycasts
-    private RaycastHit[] raycastHits = new RaycastHit[10];
-
-    // 同步动画
-    private SyncPhysicsObject[] syncPhysicsObjects;
-
-    // Cinemachine
-    private CinemachineCamera cinemachineCamera;
-
-    // 让客户端可以同步Ragdoll
-    [Networked, Capacity(10)] public NetworkArray<Quaternion> networkPhysicsSyncedRotations { get; }
+    public bool IsGrabingActive => isGrabingActive;
 
     // 保存原始数据
     private float startSlerpPositionSpring = 0.0f;
@@ -53,13 +41,24 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     // 时间：上次进入Ragdoll状态（僵直）的时间，用于恢复计时
     private float lastTimeBeginRagdoll;
 
+    // Cinemachine
+    private CinemachineCamera cinemachineCamera;
+
+    // Raycasts
+    private RaycastHit[] raycastHits = new RaycastHit[10];
+
+    // 同步四肢的物理状态
+    private SyncPhysicsObject[] syncPhysicsObjects;
+
     // 抓取管理
     private HandGrabHandler[] handGrabHandlers;
+
+    // 让客户端可以同步Ragdoll
+    [Networked, Capacity(10)] public NetworkArray<Quaternion> networkPhysicsSyncedRotations { get; }
 
     private void Awake()
     {
         syncPhysicsObjects = GetComponentsInChildren<SyncPhysicsObject>();
-
         handGrabHandlers = GetComponentsInChildren<HandGrabHandler>();
     }
 
@@ -68,6 +67,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         startSlerpPositionSpring = mainJoint.slerpDrive.positionSpring; // 存储spring的原始状态，因为需要在玩家被击中后从ragdoll状态恢复
     }
 
+    /// <summary>
+    /// 负责采集玩家的按键指令输入，比如移动/跳跃/复活/抓取动作，然后更新到NetworkInputData
+    /// </summary>
     private void Update()
     {
         // 移动按键输入
@@ -92,7 +94,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             isGrabButtonPressed = true;
         }
     }
-
+    /// <summary>
+    /// Fusion提供的网络同步物理更新回调，类似于Unity是FixedUpdate()
+    /// </summary>
     public override void FixedUpdateNetwork()
     {
         Vector3 localVelocityForward = Vector3.zero;
@@ -101,10 +105,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         // 权威端(Client/Host)执行：即有权利修改网络对象的同步状态
         if (Object.HasStateAuthority)
         {
-            // 通过射线检测，判断角色脚下0.5米范围是否有碰撞体
+            // 通过射线检测，检测角色脚下0.5米范围是否有碰撞体，判断角色是否腾空
             isGrounded = false;
             int numberOfHits = Physics.SphereCastNonAlloc(rigidbody3D.position, 0.1f, transform.up * -1, raycastHits, 0.5f);
-
             for (int i = 0; i < numberOfHits; i++)
             {
                 if (raycastHits[i].transform.root == transform) continue; // 跳过自身碰撞
@@ -128,7 +131,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
             // 控制角色移动与旋转
             float inputMagnityed = networkInputData.movementInput.magnitude;
 
-            isGrabbingActive = networkInputData.isGrabPressed;
+            isGrabingActive = networkInputData.isGrabPressed;
             
             // 如果玩家处于Actice Ragdoll模式，则可以实现移动/跳跃等输入指令
             if(isActiveRagdoll)
@@ -171,12 +174,14 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
                 networkPhysicsSyncedRotations.Set(i, syncPhysicsObjects[i].transform.localRotation);
             }
 
+            // 如果角色掉落出平台，则重置角色
             if(transform.position.y < -10)
             {
-                networkRigidbody3D.Teleport(Vector3.zero, Quaternion.identity);
+                networkRigidbody3D.Teleport(Vector3.zero, Quaternion.identity); // 重置Rigidbody状态，用于死亡/掉落复位
                 MakeActiveRagdoll();
             }
 
+            // 处理角色抓取
             foreach(HandGrabHandler handGrabHandler in handGrabHandlers)
             {
                 handGrabHandler.UpdateState();
@@ -184,7 +189,10 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         }
     }
 
-    // 物理？
+    /// <summary>
+    /// 仅在非权威端执行，四肢在Host上的物理旋转结果被广播
+    /// 把networkPhysicsSyncedRotations的网络值插值到实际骨骼，实现平滑显示
+    /// </summary>
     public override void Render()
     {
         if(!Object.HasStateAuthority)
@@ -198,6 +206,12 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         }
     }
 
+    /// <summary>
+    /// Fusion会在每帧回调以获取输入数据，把Update()中玩家的输入打包成NetworkInputData发给Host
+    /// </summary>
+    /// <returns>
+    /// 结构体NetworkInputData，表示客户端玩家的输入数据
+    /// </returns>
     public NetworkInputData GetNetworkInput()
     {
         NetworkInputData networkInputData = new NetworkInputData();
@@ -214,13 +228,16 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         // 玩家按下抓取键
         if(isGrabButtonPressed) networkInputData.isGrabPressed = true;
 
-        // 重置两个按键
+        // 重置跳跃+复活按键，当值在下一帧中重复
         isJumpButtonPressed = false;
         isRevivedButtonPressed = false;
 
         return networkInputData;
     }
 
+    /// <summary>
+    /// 当角色被击中时，进入Ragdoll状态
+    /// </summary>
     public void OnPlayerBodyPartHit()
     {
         if (!IsActiveRagdoll) return;
@@ -246,7 +263,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
         lastTimeBeginRagdoll = Runner.SimulationTime; // 存储的是Runner的模拟时间
         isActiveRagdoll = false;
-        isGrabbingActive = false;
+        isGrabingActive = false;
     }
 
     // 结束Ragdoll状态，进入Active Ragdoll（初始）状态
@@ -266,25 +283,21 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         }
 
         isActiveRagdoll = true;
-        isGrabbingActive = false;
+        isGrabingActive = false;
     }
-    /*
-    private void OnCollisionEnter(Collision collision)
-    {
-        if(collision.transform.CompareTag("CauseDamage"))
-        {
-            MakeRagdoll();
-        }
-    }
-    */
+
+    /// <summary>
+    /// 当网络对象生成时调用
+    /// </summary>
     public override void Spawned()
     {
-        if(Object.HasInputAuthority)
+        // 如果当前玩家是本地玩家
+        if (Object.HasInputAuthority)
         {
-            Local = this;
+            Local = this; // 设置静态Local引用
 
             cinemachineCamera = FindObjectOfType<CinemachineCamera>();
-            cinemachineCamera.Follow = transform;
+            cinemachineCamera.Follow = transform; // 让相机跟随角色
 
             Utils.DebugLog("Spawn player with input aythority");
         }

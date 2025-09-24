@@ -2,18 +2,18 @@ using UnityEngine;
 
 public class SyncPhysicsObject : MonoBehaviour
 {
-    private Rigidbody rigidbody3D;
-    private ConfigurableJoint joint;
+    private Rigidbody rigidbody3D;   // 当前肢体的Rigidbody，用于物理模拟
+    private ConfigurableJoint joint; // 当前肢体的ConfigurableJoint，控制肢体相对父节点旋转和约束
 
     [SerializeField]
-    private Rigidbody animatedRigidBody3D;
+    private Rigidbody animatedRigidBody3D; // 用于动画驱动Rigidbody
 
     [SerializeField]
-    private bool syncAnimation = false;
+    private bool syncAnimation = false;    // 根据动画更新肢体旋转
 
-    private Quaternion startLocalRotation;
+    private Quaternion startLocalRotation; // 存储初始局部旋转，用于后面计算动画旋转偏移
 
-    private float startSlerpPositionSpring = 0.0f;
+    private float startSlerpPositionSpring = 0.0f; // 保存joint的原始slerp驱动力度，用于Ragdoll/Active Ragdoll切换
 
     private void Awake()
     {
@@ -25,6 +25,7 @@ public class SyncPhysicsObject : MonoBehaviour
         startSlerpPositionSpring = joint.slerpDrive.positionSpring;
     }
 
+    // 动画驱动肢体动作
     public void UpdateJointFromAnimation()
     {
         if (!syncAnimation) return;
@@ -40,7 +41,7 @@ public class SyncPhysicsObject : MonoBehaviour
         joint.slerpDrive = jointDrive;
     }
 
-    // 结束Ragdoll状态，进入Active Ragdoll（初始）状态
+    // 结束Ragdoll状态，进入Active Ragdoll（初始）状态，恢复初始值
     public void MakeActiveRagdoll()
     {
         JointDrive jointDrive = joint.slerpDrive;

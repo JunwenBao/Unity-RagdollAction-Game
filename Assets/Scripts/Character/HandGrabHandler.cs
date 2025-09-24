@@ -21,7 +21,7 @@ public class HandGrabHandler : MonoBehaviour
 
     public void UpdateState()
     {
-        if(networkPlayer.IsGrabbingActive)
+        if(networkPlayer.IsGrabingActive)
         {
             animator.SetBool("isGrabing", true);
         }
@@ -57,7 +57,7 @@ public class HandGrabHandler : MonoBehaviour
         if (!networkPlayer.IsActiveRagdoll) return false;
 
         // 如果当前正在抓某个物品，则不执行
-        if (!networkPlayer.IsGrabbingActive) return false;
+        if (!networkPlayer.IsGrabingActive) return false;
 
         if (fixedJoint != null) return false;
 

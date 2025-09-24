@@ -23,6 +23,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     private Vector2 moveInputVector = Vector2.zero;
     private bool isJumpButtonPressed = false;
     private bool isRevivedButtonPressed = false;
+    private bool isGrabButtonPressed = false;
 
     // 角色属性
     private float maxSpeed = 3f;
@@ -31,6 +32,8 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     private bool isGrounded = false;
     private bool isActiveRagdoll = true;
     public bool IsActiveRagdoll => isActiveRagdoll;
+    private bool isGrabbingActive = false;
+    public bool IsGrabbingActive => isGrabbingActive;
 
     // Raycasts
     private RaycastHit[] raycastHits = new RaycastHit[10];
@@ -50,9 +53,14 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
     // 时间：上次进入Ragdoll状态（僵直）的时间，用于恢复计时
     private float lastTimeBeginRagdoll;
 
+    // 抓取管理
+    private HandGrabHandler[] handGrabHandlers;
+
     private void Awake()
     {
         syncPhysicsObjects = GetComponentsInChildren<SyncPhysicsObject>();
+
+        handGrabHandlers = GetComponentsInChildren<HandGrabHandler>();
     }
 
     private void Start()
@@ -76,6 +84,12 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         if (Input.GetKeyDown(KeyCode.R))
         {
             isRevivedButtonPressed = true;
+        }
+
+        // 抓取按键输入
+        if (Input.GetKeyDown(KeyCode.G))
+        {
+            isGrabButtonPressed = true;
         }
     }
 
@@ -113,6 +127,8 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         {
             // 控制角色移动与旋转
             float inputMagnityed = networkInputData.movementInput.magnitude;
+
+            isGrabbingActive = networkInputData.isGrabPressed;
             
             // 如果玩家处于Actice Ragdoll模式，则可以实现移动/跳跃等输入指令
             if(isActiveRagdoll)
@@ -160,6 +176,11 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
                 networkRigidbody3D.Teleport(Vector3.zero, Quaternion.identity);
                 MakeActiveRagdoll();
             }
+
+            foreach(HandGrabHandler handGrabHandler in handGrabHandlers)
+            {
+                handGrabHandler.UpdateState();
+            }
         }
     }
 
@@ -189,6 +210,9 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
         // 玩家按下复活键
         if (isRevivedButtonPressed) networkInputData.isRevivePressed = true;
+
+        // 玩家按下抓取键
+        if(isGrabButtonPressed) networkInputData.isGrabPressed = true;
 
         // 重置两个按键
         isJumpButtonPressed = false;
@@ -222,6 +246,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
 
         lastTimeBeginRagdoll = Runner.SimulationTime; // 存储的是Runner的模拟时间
         isActiveRagdoll = false;
+        isGrabbingActive = false;
     }
 
     // 结束Ragdoll状态，进入Active Ragdoll（初始）状态
@@ -241,6 +266,7 @@ public class NetworkPlayer : NetworkBehaviour, IPlayerLeft
         }
 
         isActiveRagdoll = true;
+        isGrabbingActive = false;
     }
     /*
     private void OnCollisionEnter(Collision collision)
